@@ -29,7 +29,6 @@ class WorksheetPrinter extends EventEmitter {
   }
 
   generate (paperSize, aspectRatio, rows, cols, spacing, sceneNumber, tipString, scriptData) {
-
     let headerHeight = 80
     let documentSize
     if (paperSize == 'LTR') {
@@ -43,15 +42,20 @@ class WorksheetPrinter extends EventEmitter {
     if (!sceneNumber) sceneNumber = 0
     let margin = [22, 22, 22, 40]
 
+    console.time('new doc')
     let doc = new pdfDocument({size: documentSize, layout: 'landscape', margin: 0})
+    console.timeEnd('new doc')
 
+    console.time('fonts')
     doc.registerFont('thin', path.join(__dirname, '..', '..', 'fonts', 'wonder-unit-sans', 'WonderUnitSans-Thin.ttf'))
     doc.registerFont('light', path.join(__dirname, '..', '..', 'fonts', 'wonder-unit-sans', 'WonderUnitSans-Light.ttf'))
     doc.registerFont('regular', path.join(__dirname, '..', '..', 'fonts', 'wonder-unit-sans', 'WonderUnitSans-Regular.ttf'))
     doc.registerFont('bold', path.join(__dirname, '..', '..', 'fonts', 'wonder-unit-sans', 'WonderUnitSans-Bold.ttf'))
+    console.timeEnd('fonts')
 
     let stream = doc.pipe(fs.createWriteStream(path.join(app.getPath('temp'), 'worksheetoutput.pdf')))
 
+    console.time('qr')
     // calc qr code
     let codeData = []
     codeData.push(sceneNumber)
@@ -64,6 +68,7 @@ class WorksheetPrinter extends EventEmitter {
     let qrText = codeData.join('-')
     let img = qr.imageSync(qrText, {ec_level: 'H', type: 'png', size: 15, margin: 0})
     fs.writeFileSync(path.join(app.getPath('temp'), 'qrcode.png'), img)
+    console.timeEnd('qr')
 
     // draw header
     let x, y
@@ -73,6 +78,7 @@ class WorksheetPrinter extends EventEmitter {
     x = documentSize[1]-margin[2]-qrSize
     y = margin[1]
 
+    console.time('qr add')
     doc.image(path.join(app.getPath('temp'), 'qrcode.png'), x, y, {width: qrSize, height: qrSize})
     doc.save()
     doc.rotate(-90, {origin: [x, y]})
@@ -80,6 +86,7 @@ class WorksheetPrinter extends EventEmitter {
     doc.fontSize(5)
     doc.text('CODE: ' + qrText, x-qrSize, y-10, {width: qrSize, align: 'left'})
     doc.restore()
+    console.timeEnd('qr add')
 
 
 
@@ -110,6 +117,7 @@ class WorksheetPrinter extends EventEmitter {
 //     i++
 //   }
 
+    console.time('script data')
     if (scriptData) {
       for (var node of scriptData ) {
         switch (node.type) {
@@ -143,7 +151,9 @@ class WorksheetPrinter extends EventEmitter {
       doc.fontSize(8)
       doc.text('DRAFT: ' + moment().format('MMMM Do, YYYY').toUpperCase(), margin[0], margin[1], {align: 'left'})
     }
+    console.timeEnd('script data')
 
+    console.time('story tip')
     if (tipString) {
       doc.moveDown()
       doc.fontSize(6)
@@ -152,6 +162,7 @@ class WorksheetPrinter extends EventEmitter {
       doc.font('light')
       doc.text(tipString)
     }
+    console.timeEnd('story tip')
 
     // draw svg logo
     // doc.save();
@@ -174,6 +185,7 @@ class WorksheetPrinter extends EventEmitter {
     // doc.restore();
 
     // draw instructions
+    console.time('instructions')
     doc.fontSize(13)
     doc.font('bold')
     doc.text('Storyboarder', doc.page.width-headerHeight-margin[2]-150-6, margin[1], {align: 'left'})
@@ -188,6 +200,7 @@ class WorksheetPrinter extends EventEmitter {
     doc.text('3. Go to this address on your phone:')
     doc.text('      ' + this.ipString)
     doc.text('4. Or import in Storyboarder [CMD+I]')
+    console.timeEnd('instructions')
 
     // draw boxes
     let boxesDim = [cols,rows]
@@ -199,6 +212,7 @@ class WorksheetPrinter extends EventEmitter {
 
     let currentBox = 0
 
+    console.time('boxes')
     for (var iy = 0; iy < boxesDim[1]; iy++) {
       boxesDim[1]
       for (var ix = 0; ix < boxesDim[0]; ix++) {
@@ -231,6 +245,7 @@ class WorksheetPrinter extends EventEmitter {
 
     }
     doc.end()
+    console.timeEnd('boxes')
 
     let that = this
     stream.on('close', function() {
